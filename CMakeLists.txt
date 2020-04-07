@@ -7,6 +7,6 @@ set(OPENGL_FILE F:/freeglut)
 INCLUDE_DIRECTORIES(${OPENGL_FILE}/include)
 link_directories("${OPENGL_FILE}/lib")
 
-add_executable(OpenGLGame main.cpp snake.h myDrawUtil.h)
+add_executable(OpenGLGame main.cpp myDrawUtil.h)
 
 target_link_libraries(OpenGLGame freeglut_static opengl32 winmm gdi32 glu32.lib)
