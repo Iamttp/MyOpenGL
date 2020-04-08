@@ -1,5 +1,4 @@
 #include <GL/glut.h>
-#include <cmath>
 #include <iostream>
 #include <ctime>
 #include <vector>
@@ -43,9 +42,9 @@ void changeSize(int w, int h) {
 /**
  * 视野漫游函数
  */
-void orientMe(float ang) {
-    lx = std::sin(ang);
-    lz = -std::cos(ang);
+void orientMe(float directionx, float directiony) {
+    x += directionx * 0.1;
+    y += directiony * 0.1;
     glLoadIdentity();
     gluLookAt(x, y, z, x + lx, y + ly, z + lz, 0.0f, 1.0f, 0.0f);
 }
@@ -54,7 +53,6 @@ void orientMe(float ang) {
  * 视野漫游函数
  */
 void moveMeFlat(int direction) {
-    x += direction * (lx) * 0.1;
     z += direction * (lz) * 0.1;
     glLoadIdentity();
     gluLookAt(x, y, z, x + lx, y + ly, z + lz, 0.0f, 1.0f, 0.0f);
@@ -77,6 +75,7 @@ void mouse(int button, int state, int x, int y) {
     } else if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN) {
         if (useUtil == 2) {
             useUtil = 0;
+            now.finish();
             glp.push_back(now);
             now.sketch.clear();
             now.h = 0;
@@ -106,6 +105,19 @@ void mouseMotion(int x, int y) {
  */
 void processSpecialKeys(int key, int x, int y) {
     switch (key) {
+        case GLUT_KEY_UP:
+            orientMe(0, 1);
+            break;
+        case GLUT_KEY_DOWN:
+            orientMe(0, -1);
+            break;
+        case GLUT_KEY_LEFT:
+            orientMe(-1, 0);
+            break;
+        case GLUT_KEY_RIGHT:
+            orientMe(1, 0);
+            break;
+
         case GLUT_KEY_PAGE_DOWN:
             moveMeFlat(-1);
             break;
@@ -164,17 +176,8 @@ void myDisplay() {
         glPopMatrix();
     }
 
-    // 然后画已完成
-    for (auto &item:glp) {
-        glPushMatrix();
-        glColor4f(0.7, 0.7, 0.7, 0);
-        drawPull(item.sketch, item.h);
-        glPopMatrix();
-        glPushMatrix();
-        glColor4f(0, 0, 0, 0);
-        drawPull2(item.sketch, item.h);
-        glPopMatrix();
-    }
+    for (auto &item:glp)
+        glCallList(item.index);
 
     // 然后坐标系
     glLineWidth(5);
@@ -234,9 +237,25 @@ void myIdle() {
     myDisplay();
 }
 
-int main(int argc, char *argv[]) {
+void init() {
+    const GLubyte *name = glGetString(GL_VENDOR);
+    const GLubyte *biaoshifu = glGetString(GL_RENDERER);
+    const GLubyte *OpenGLVersion = glGetString(GL_VERSION);
+    const GLubyte *gluVersion = gluGetString(GLU_VERSION);
+    std::cout << name << std::endl;
+    std::cout << biaoshifu << std::endl;
+    std::cout << OpenGLVersion << std::endl;
+    std::cout << gluVersion << std::endl;
+
     srand((unsigned) time(NULL));
 
+    // 在OpenGL中，默认是没有开启深度检测的，后绘制的物体覆盖先绘制的物体。
+    // GL_DEPTH_TEST 用来开启更新深度缓冲区的功能
+    glEnable(GL_DEPTH_TEST);
+    glClearColor(0.93f, 0.93f, 0.93f, 0.0f);
+}
+
+int main(int argc, char *argv[]) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
     glutInitWindowPosition(100, 100);
@@ -251,18 +270,7 @@ int main(int argc, char *argv[]) {
     glutMouseFunc(mouse);
     glutMotionFunc(mouseMotion);
 
-    // 在OpenGL中，默认是没有开启深度检测的，后绘制的物体覆盖先绘制的物体。
-    // GL_DEPTH_TEST 用来开启更新深度缓冲区的功能
-    glEnable(GL_DEPTH_TEST);
-    glClearColor(0.93f, 0.93f, 0.93f, 0.0f);
-//    const GLubyte *name = glGetString(GL_VENDOR);
-//    const GLubyte *biaoshifu = glGetString(GL_RENDERER);
-//    const GLubyte *OpenGLVersion = glGetString(GL_VERSION);
-//    const GLubyte *gluVersion = gluGetString(GLU_VERSION);
-//    std::cout << name << std::endl;
-//    std::cout << biaoshifu << std::endl;
-//    std::cout << OpenGLVersion << std::endl;
-//    std::cout << gluVersion << std::endl;
+    init();
     glutMainLoop();
     return 0;
 }

@@ -2,6 +2,9 @@
 #define OPENGLGAME_MYDRAWUTIL_H
 
 #include <list>
+#include <vector>
+#include <GL/glut.h>
+#include <cmath>
 
 template<class A>
 struct MyPos {
@@ -20,11 +23,6 @@ struct MyPos {
     MyPos() = default;
 
     MyPos(A x, A y, A z) : x(x), y(y), z(z) {}
-};
-
-struct Per3dObject {
-    std::list<MyPos<float >> sketch;
-    float h = 0;
 };
 
 void drawSketch(std::list<MyPos<float >> lt) {
@@ -90,6 +88,8 @@ std::vector<double> screen2world(int x, int y) {
     glGetIntegerv(GL_VIEWPORT, viewport);
     winX = (float) x;
     winY = (float) viewport[3] - (float) y;
+    // 把已经绘制好的像素（它可能已经被保存到显卡的显存中）读取到内存
+    // GL_DEPTH_COMPONENT 为深度读取
     glReadPixels(x, int(winY), 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &winZ);
     gluUnProject(winX, winY, winZ, modelview, projection, viewport, &posX, &posY, &posZ);
     std::vector<double> v{4, posX, posY, posZ, 1.0};
@@ -99,5 +99,25 @@ std::vector<double> screen2world(int x, int y) {
 inline float myRound(float a) {
     return std::round(10 * a) / 10.0f;
 }
+
+struct Per3dObject {
+    std::list<MyPos<float >> sketch;
+    float h = 0;
+
+    int index;
+    void finish() {
+        index = glGenLists(1);//glGenLists()唯一的标识一个显示列表
+        glNewList(index, GL_COMPILE);//用于对显示列表进行定界。第一个参数是一个整形索引值，由glGenLists()指定
+        glPushMatrix();
+        glColor4f(0.7, 0.7, 0.7, 0);
+        drawPull(sketch, h);
+        glPopMatrix();
+        glPushMatrix();
+        glColor4f(0, 0, 0, 0);
+        drawPull2(sketch, h);
+        glPopMatrix();
+        glEndList();
+    }
+};
 
 #endif //OPENGLGAME_MYDRAWUTIL_H
