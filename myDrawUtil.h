@@ -27,7 +27,13 @@ public:
     MyPos() = default;
 
     MyPos(float x, float y, float z) : x(x), y(y), z(z) {}
+
+    friend std::ostream &operator<<(std::ostream &, const MyPos &);
 };
+
+std::ostream &operator<<(std::ostream &out, const MyPos &myPos) {
+    out << "[" << myPos.x << "," << myPos.y << "," << myPos.z << "]\n";
+}
 
 void drawSketch(std::vector<MyPos> lt) {
     /* 绘制线段操作 */

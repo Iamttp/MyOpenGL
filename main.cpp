@@ -3,10 +3,11 @@
 #include <ctime>
 #include <list>
 #include <fstream>
+#include <thread>
 #include "myDrawUtil.h"
 
 static float angle = 0.0, ratio;  // angle绕y轴的旋转角，ratio窗口高宽比
-static float x = 0.0f, y = 0.0f, z = 6.0f;  //相机位置
+static float x = 0.0f, y = 0.0f, z = 5.0f;  //相机位置
 static float lx = 0.0f, ly = 0.0f, lz = -1.0f;  //视线方向，初始设为沿着Z轴负方向
 
 const int WIDTH = 1000;
@@ -188,7 +189,7 @@ void processNormalKeys(unsigned char key, int x, int y) {
                 if (in.is_open()) {
                     int n;
                     in >> n;
-                    for (int i=0;i<n;i++){
+                    for (int i = 0; i < n; i++) {
                         Per3dObject item;
                         in >> item;
                         glp.push_back(item);
@@ -243,6 +244,37 @@ void myDisplay() {
     glCallList(index);
     glFlush();
     glutSwapBuffers();
+}
+
+std::string exec(const char *str, int len) {
+    if (str[0] == 'c') {
+        // 颜色设置
+        std::string temp;
+        int step = 0;
+        for (int i = 1; i < len; i++) {
+            if (str[i] == ',') {
+                if (step == 0) color.x = stof(temp);
+                else if (step == 1) color.y = stof(temp);
+                temp = "";
+                step++;
+                continue;
+            }
+            temp += str[i];
+        }
+        color.z = stof(temp);
+        useUtil = 6;
+    }
+    return "";
+}
+
+
+void myScript() {
+    while (true) {
+        std::cout << ">>> ";
+        char str[100];
+        std::cin.getline(str, 100);
+        std::cout << exec(str, strlen(str)) << std::endl;
+    }
 }
 
 /**
@@ -346,6 +378,9 @@ void init() {
     glColor4f(1, 1, 1, 1);
     glRectf(-width * zoom, -height * zoom, width * zoom, height * zoom);
     glEndList();
+
+    std::thread t(myScript);
+    t.detach();
 }
 
 int main(int argc, char *argv[]) {
