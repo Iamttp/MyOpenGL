@@ -2,6 +2,7 @@
 #include <iostream>
 #include <ctime>
 #include <list>
+#include <fstream>
 #include "myDrawUtil.h"
 
 static float angle = 0.0, ratio;  // angle绕y轴的旋转角，ratio窗口高宽比
@@ -20,7 +21,7 @@ const int width = 100;
 const int height = 100;
 
 int useUtil = 0; // 草图1，拉升2，颜色6
-MyPos<float> color;
+MyPos color;
 std::list<Per3dObject> glp; // 全局已完成的图形
 Per3dObject now;    // 正在绘制的图形
 int index;
@@ -69,11 +70,11 @@ void moveMeFlat(int direction) {
 void mouse(int button, int state, int x, int y) {
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
         if (useUtil == 1) {
-            MyPos<float> world = screen2world(x, y);
+            MyPos world = screen2world(x, y);
 //            std::cout << func(world[1]) << " " << func(world[2]) << " " << myRound(world[3]) << std::endl;
             now.sketch.emplace_back(myRound(world.x), myRound(world.y), world.z);
         } else if (useUtil == 6) {
-            MyPos<float> world = screen2world(x, y);
+            MyPos world = screen2world(x, y);
             world.x = myRound(world.x);
             world.y = myRound(world.y);
             for (auto &item:glp)
@@ -100,7 +101,7 @@ void mouse(int button, int state, int x, int y) {
  */
 void mouseMotion(int x, int y) {
     if (useUtil == 2) {
-        MyPos<float> world = screen2world(x, y);
+        MyPos world = screen2world(x, y);
         now.h = myRound(world.x) - myRound(now.sketch[0].x);
         glutPostRedisplay();
     }
@@ -167,6 +168,34 @@ void processNormalKeys(unsigned char key, int x, int y) {
             break;
         case 'a':
             // 切除
+            break;
+        case 's':
+            if (mod == GLUT_ACTIVE_ALT) {
+                // Alt + s
+                std::ofstream out("out.txt");
+                if (out.is_open()) {
+                    out << glp.size() << std::endl;
+                    for (auto &item:glp)
+                        out << item;
+                    out.close();
+                }
+            }
+            break;
+        case 'l':
+            if (mod == GLUT_ACTIVE_ALT) {
+                // Alt + l
+                std::ifstream in("out.txt");
+                if (in.is_open()) {
+                    int n;
+                    in >> n;
+                    for (int i=0;i<n;i++){
+                        Per3dObject item;
+                        in >> item;
+                        glp.push_back(item);
+                    }
+                    in.close();
+                }
+            }
             break;
         default:
             useUtil = 0;

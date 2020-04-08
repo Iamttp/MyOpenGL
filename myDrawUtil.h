@@ -4,31 +4,32 @@
 #include <vector>
 #include <GL/glut.h>
 #include <cmath>
+#include <iostream>
 
-template<class A>
-struct MyPos {
-    A x{}, y{}, z{};
+class MyPos {
+public:
+    float x{}, y{}, z{};
 
-    void set(A x, A y, A z) {
+    void set(float x, float y, float z) {
         this->x = x;
         this->y = y;
         this->z = z;
     }
 
-    bool operator==(const MyPos<A> &b) {
+    bool operator==(const MyPos &b) {
         return x == b.x && y == b.y && std::abs(z - b.z) < 0.0001f;
     }
 
-    MyPos<A> operator-(const MyPos<A> &b) {
+    MyPos operator-(const MyPos &b) {
         return {x - b.x, y - b.y, z - b.z};
     }
 
     MyPos() = default;
 
-    MyPos(A x, A y, A z) : x(x), y(y), z(z) {}
+    MyPos(float x, float y, float z) : x(x), y(y), z(z) {}
 };
 
-void drawSketch(std::vector<MyPos<float >> lt) {
+void drawSketch(std::vector<MyPos> lt) {
     /* 绘制线段操作 */
     glBegin(GL_LINE_STRIP);
     for (auto &item:lt) {
@@ -38,7 +39,7 @@ void drawSketch(std::vector<MyPos<float >> lt) {
 }
 
 // 拉伸操作lx,ly,lz为草图一系列点，h为高
-void drawPull(std::vector<MyPos<float >> lt, float h) {
+void drawPull(std::vector<MyPos> lt, float h) {
     glBegin(GL_QUAD_STRIP);
     for (auto &item:lt) {
         glVertex3f(item.x, item.y, item.z);
@@ -60,7 +61,7 @@ void drawPull(std::vector<MyPos<float >> lt, float h) {
     }
 }
 
-void drawPull2(std::vector<MyPos<float >> lt, float h) {
+void drawPull2(std::vector<MyPos> lt, float h) {
     glBegin(GL_LINES);
     for (auto &item:lt) {
         glVertex3f(item.x, item.y, item.z);
@@ -80,7 +81,7 @@ void drawPull2(std::vector<MyPos<float >> lt, float h) {
 }
 
 // https://blog.csdn.net/sac761/article/details/52179585
-MyPos<float> screen2world(int x, int y) {
+MyPos screen2world(int x, int y) {
     int viewport[4];
     double modelview[16];
     double projection[16];
@@ -113,22 +114,23 @@ inline float myRound(float a) {
     或者它的转置是否为零
     若为零则四点共面
 */
-float fourPointC(MyPos<float> p1, MyPos<float> p2, MyPos<float> p3, MyPos<float> p4) {
-    MyPos<float> vx = p2 - p1, vy = p3 - p1, vz = p4 - p1;
+float fourPointC(MyPos p1, MyPos p2, MyPos p3, MyPos p4) {
+    MyPos vx = p2 - p1, vy = p3 - p1, vz = p4 - p1;
     float x1 = vx.x, x2 = vy.x, x3 = vz.x,
             y1 = vx.y, y2 = vy.y, y3 = vz.y,
             z1 = vx.z, z2 = vy.z, z3 = vz.z;
     return (x1 * y2 * z3) + (x2 * y3 * z1) + (x3 * y1 * z2) - (x3 * y2 * z1) - (y3 * z2 * x1) - (z3 * x2 * y1);
 }
 
-struct Per3dObject {
-    std::vector<MyPos<float >> sketch;
-    MyPos<float> color{0.7, 0.7, 0.7};
+class Per3dObject {
+public:
+    std::vector<MyPos> sketch;
+    MyPos color{0.7, 0.7, 0.7};
     float h = 0;
 
-    bool collisionDetection(MyPos<float> world) {
+    bool collisionDetection(MyPos world) {
         for (int i = 0; i < sketch.size() - 1; ++i) {
-            MyPos<float> item = sketch[i];
+            MyPos item = sketch[i];
             item.z += h;
             if (std::abs(fourPointC(world, sketch[i], sketch[i + 1], item)) < 0.1f)
                 return true;
@@ -136,9 +138,34 @@ struct Per3dObject {
         return false;
     }
 
-    void setColor(MyPos<float> tmpColor) {
+    void setColor(MyPos tmpColor) {
         color = tmpColor;
     }
+
+    friend std::ostream &operator<<(std::ostream &, const Per3dObject &);
+
+    friend std::istream &operator>>(std::istream &, const Per3dObject &);
 };
+
+std::ostream &operator<<(std::ostream &out, const Per3dObject &obj) {
+    out << obj.sketch.size() << std::endl;
+    for (auto &item:obj.sketch) out << item.x << " " << item.y << " " << item.z << std::endl;
+    out << obj.color.x << " " << obj.color.y << " " << obj.color.z << std::endl;
+    out << obj.h << std::endl;
+    return out;
+}
+
+std::istream &operator>>(std::istream &in, Per3dObject &obj) {
+    int n;
+    in >> n;
+    for (int i = 0; i < n; i++) {
+        MyPos sk;
+        in >> sk.x >> sk.y >> sk.z;
+        obj.sketch.push_back(sk);
+    }
+    in >> obj.color.x >> obj.color.y >> obj.color.z;
+    in >> obj.h;
+    return in;
+}
 
 #endif //OPENGLGAME_MYDRAWUTIL_H
