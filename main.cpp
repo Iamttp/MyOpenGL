@@ -20,8 +20,10 @@ const int width = 100;
 const int height = 100;
 
 int useUtil = 0; // 草图1，拉升2，颜色6
+MyPos<float> color;
 std::list<Per3dObject> glp; // 全局已完成的图形
 Per3dObject now;    // 正在绘制的图形
+int index;
 
 /**
  * 定义观察方式
@@ -76,7 +78,7 @@ void mouse(int button, int state, int x, int y) {
             world.y = myRound(world.y);
             for (auto &item:glp)
                 if (item.collisionDetection(world))
-                    item.setColor({1, 0, 0});
+                    item.setColor(color);
         } else {
             mouseDown = true;
             xdiff = x - yrot;
@@ -85,7 +87,6 @@ void mouse(int button, int state, int x, int y) {
     } else if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN) {
         if (useUtil == 2) {
             useUtil = 0;
-            now.finish();
             glp.push_back(now);
             now.sketch.clear();
             now.h = 0;
@@ -102,7 +103,9 @@ void mouseMotion(int x, int y) {
         MyPos<float> world = screen2world(x, y);
         now.h = myRound(world.x) - myRound(now.sketch[0].x);
         glutPostRedisplay();
-    } else if (mouseDown) {
+    }
+    if (mouseDown) {
+        if (useUtil == 2) return;
         yrot = x - xdiff;
         xrot = y + ydiff;
         glutPostRedisplay();
@@ -139,8 +142,19 @@ void processSpecialKeys(int key, int x, int y) {
 }
 
 void processNormalKeys(unsigned char key, int x, int y) {
+    int mod = glutGetModifiers();
     switch (key) {
         case 'z':
+            if (mod == GLUT_ACTIVE_ALT) {
+                // Alt + z
+                if (!now.sketch.empty())
+                    now.sketch.pop_back();
+                else {
+                    now = glp.back();
+                    glp.pop_back();
+                }
+                break;
+            }
             // 画笔
             useUtil = 1;
             xrot = 0.0f, yrot = 0.0f;
@@ -153,9 +167,6 @@ void processNormalKeys(unsigned char key, int x, int y) {
             break;
         case 'a':
             // 切除
-            break;
-        case 'p':
-            useUtil = 6;
             break;
         default:
             useUtil = 0;
@@ -189,9 +200,76 @@ void myDisplay() {
         glPopMatrix();
     }
 
-    for (auto &item:glp)
-        glCallList(item.index);
+    for (auto &item:glp) {
+        glPushMatrix();
+        glColor4f(item.color.x, item.color.y, item.color.z, 0);
+        drawPull(item.sketch, item.h);
+        glPopMatrix();
+        glPushMatrix();
+        glColor4f(0, 0, 0, 0);
+        drawPull2(item.sketch, item.h);
+        glPopMatrix();
+    }
 
+    glCallList(index);
+    glFlush();
+    glutSwapBuffers();
+}
+
+/**
+ * 计时增加角度
+ */
+void myIdle() {
+    myDisplay();
+}
+
+void processMenuEvents(int option) {
+    useUtil = 6;
+    //option ，就是传递过来的value的值。
+    switch (option) {
+        case 1:
+            color.set(1, 0, 0);
+            break;
+        case 2:
+            color.set(0, 0, 1);
+            break;
+        case 3:
+            color.set(0, 1, 0);
+            break;
+        default:
+            break;
+    }
+}
+
+void init() {
+    const GLubyte *name = glGetString(GL_VENDOR);
+    const GLubyte *biaoshifu = glGetString(GL_RENDERER);
+    const GLubyte *OpenGLVersion = glGetString(GL_VERSION);
+    const GLubyte *gluVersion = gluGetString(GLU_VERSION);
+    std::cout << name << std::endl;
+    std::cout << biaoshifu << std::endl;
+    std::cout << OpenGLVersion << std::endl;
+    std::cout << gluVersion << std::endl;
+
+    srand((unsigned) time(NULL));
+
+    // 在OpenGL中，默认是没有开启深度检测的，后绘制的物体覆盖先绘制的物体。
+    // GL_DEPTH_TEST 用来开启更新深度缓冲区的功能
+    glEnable(GL_DEPTH_TEST);
+    glClearColor(0.93f, 0.93f, 0.93f, 0.0f);
+
+    // 创建菜单 processMenuEvents处理菜单事件。
+    glutCreateMenu(processMenuEvents);
+    // 给菜单增加条目
+    glutAddMenuEntry("Red", 1);
+    glutAddMenuEntry("Blue", 2);
+    glutAddMenuEntry("Green", 3);
+    //把菜单和鼠标右键关联起来。
+    glutAttachMenu(GLUT_MIDDLE_BUTTON);
+
+    // 显示列表
+    index = glGenLists(1);//glGenLists()唯一的标识一个显示列表
+    glNewList(index, GL_COMPILE);//用于对显示列表进行定界。第一个参数是一个整形索引值，由glGenLists()指定
     // 然后坐标系
     glLineWidth(5);
     glEnable(GL_LINE_SMOOTH);
@@ -238,34 +316,7 @@ void myDisplay() {
     // 先画平面
     glColor4f(1, 1, 1, 1);
     glRectf(-width * zoom, -height * zoom, width * zoom, height * zoom);
-
-    glFlush();
-    glutSwapBuffers();
-}
-
-/**
- * 计时增加角度
- */
-void myIdle() {
-    myDisplay();
-}
-
-void init() {
-    const GLubyte *name = glGetString(GL_VENDOR);
-    const GLubyte *biaoshifu = glGetString(GL_RENDERER);
-    const GLubyte *OpenGLVersion = glGetString(GL_VERSION);
-    const GLubyte *gluVersion = gluGetString(GLU_VERSION);
-    std::cout << name << std::endl;
-    std::cout << biaoshifu << std::endl;
-    std::cout << OpenGLVersion << std::endl;
-    std::cout << gluVersion << std::endl;
-
-    srand((unsigned) time(NULL));
-
-    // 在OpenGL中，默认是没有开启深度检测的，后绘制的物体覆盖先绘制的物体。
-    // GL_DEPTH_TEST 用来开启更新深度缓冲区的功能
-    glEnable(GL_DEPTH_TEST);
-    glClearColor(0.93f, 0.93f, 0.93f, 0.0f);
+    glEndList();
 }
 
 int main(int argc, char *argv[]) {

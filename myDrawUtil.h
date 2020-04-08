@@ -126,23 +126,6 @@ struct Per3dObject {
     MyPos<float> color{0.7, 0.7, 0.7};
     float h = 0;
 
-    int index;
-
-    void finish() {
-        // TODO 删除之前的
-        index = glGenLists(1);//glGenLists()唯一的标识一个显示列表
-        glNewList(index, GL_COMPILE);//用于对显示列表进行定界。第一个参数是一个整形索引值，由glGenLists()指定
-        glPushMatrix();
-        glColor4f(color.x, color.y, color.z, 0);
-        drawPull(sketch, h);
-        glPopMatrix();
-        glPushMatrix();
-        glColor4f(0, 0, 0, 0);
-        drawPull2(sketch, h);
-        glPopMatrix();
-        glEndList();
-    }
-
     bool collisionDetection(MyPos<float> world) {
         for (int i = 0; i < sketch.size() - 1; ++i) {
             MyPos<float> item = sketch[i];
@@ -155,9 +138,7 @@ struct Per3dObject {
 
     void setColor(MyPos<float> tmpColor) {
         color = tmpColor;
-        finish();
     }
-
 };
 
 #endif //OPENGLGAME_MYDRAWUTIL_H
