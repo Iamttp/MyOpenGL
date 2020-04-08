@@ -1,7 +1,6 @@
 #ifndef OPENGLGAME_MYDRAWUTIL_H
 #define OPENGLGAME_MYDRAWUTIL_H
 
-#include <list>
 #include <vector>
 #include <GL/glut.h>
 #include <cmath>
@@ -16,8 +15,12 @@ struct MyPos {
         this->z = z;
     }
 
-    bool operator==(const MyPos<float> b) {
-        return x == b.x && y == b.y && z == b.z;
+    bool operator==(const MyPos<A> &b) {
+        return x == b.x && y == b.y && std::abs(z - b.z) < 0.0001f;
+    }
+
+    MyPos<A> operator-(const MyPos<A> &b) {
+        return {x - b.x, y - b.y, z - b.z};
     }
 
     MyPos() = default;
@@ -25,7 +28,7 @@ struct MyPos {
     MyPos(A x, A y, A z) : x(x), y(y), z(z) {}
 };
 
-void drawSketch(std::list<MyPos<float >> lt) {
+void drawSketch(std::vector<MyPos<float >> lt) {
     /* 绘制线段操作 */
     glBegin(GL_LINE_STRIP);
     for (auto &item:lt) {
@@ -35,7 +38,7 @@ void drawSketch(std::list<MyPos<float >> lt) {
 }
 
 // 拉伸操作lx,ly,lz为草图一系列点，h为高
-void drawPull(std::list<MyPos<float >> lt, float h) {
+void drawPull(std::vector<MyPos<float >> lt, float h) {
     glBegin(GL_QUAD_STRIP);
     for (auto &item:lt) {
         glVertex3f(item.x, item.y, item.z);
@@ -57,7 +60,7 @@ void drawPull(std::list<MyPos<float >> lt, float h) {
     }
 }
 
-void drawPull2(std::list<MyPos<float >> lt, float h) {
+void drawPull2(std::vector<MyPos<float >> lt, float h) {
     glBegin(GL_LINES);
     for (auto &item:lt) {
         glVertex3f(item.x, item.y, item.z);
@@ -77,7 +80,7 @@ void drawPull2(std::list<MyPos<float >> lt, float h) {
 }
 
 // https://blog.csdn.net/sac761/article/details/52179585
-std::vector<double> screen2world(int x, int y) {
+MyPos<float> screen2world(int x, int y) {
     int viewport[4];
     double modelview[16];
     double projection[16];
@@ -92,24 +95,45 @@ std::vector<double> screen2world(int x, int y) {
     // GL_DEPTH_COMPONENT 为深度读取
     glReadPixels(x, int(winY), 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &winZ);
     gluUnProject(winX, winY, winZ, modelview, projection, viewport, &posX, &posY, &posZ);
-    std::vector<double> v{4, posX, posY, posZ, 1.0};
-    return v;
+    return {static_cast<float>(posX), static_cast<float>(posY), static_cast<float>(posZ)};
 }
 
 inline float myRound(float a) {
     return std::round(10 * a) / 10.0f;
 }
 
+/**
+    已知四个点坐标判断是否共面
+    可以用行列式来判断
+    用四个点求出三个向量分别为(x1,y1,z1),(x2,y2,z2),(x3,y3,z3)
+    判断行列式
+    | x1 x2 x3|
+    | y1 y2 y3|
+    | z1 z2 z3|
+    或者它的转置是否为零
+    若为零则四点共面
+*/
+float fourPointC(MyPos<float> p1, MyPos<float> p2, MyPos<float> p3, MyPos<float> p4) {
+    MyPos<float> vx = p2 - p1, vy = p3 - p1, vz = p4 - p1;
+    float x1 = vx.x, x2 = vy.x, x3 = vz.x,
+            y1 = vx.y, y2 = vy.y, y3 = vz.y,
+            z1 = vx.z, z2 = vy.z, z3 = vz.z;
+    return (x1 * y2 * z3) + (x2 * y3 * z1) + (x3 * y1 * z2) - (x3 * y2 * z1) - (y3 * z2 * x1) - (z3 * x2 * y1);
+}
+
 struct Per3dObject {
-    std::list<MyPos<float >> sketch;
+    std::vector<MyPos<float >> sketch;
+    MyPos<float> color{0.7, 0.7, 0.7};
     float h = 0;
 
     int index;
+
     void finish() {
+        // TODO 删除之前的
         index = glGenLists(1);//glGenLists()唯一的标识一个显示列表
         glNewList(index, GL_COMPILE);//用于对显示列表进行定界。第一个参数是一个整形索引值，由glGenLists()指定
         glPushMatrix();
-        glColor4f(0.7, 0.7, 0.7, 0);
+        glColor4f(color.x, color.y, color.z, 0);
         drawPull(sketch, h);
         glPopMatrix();
         glPushMatrix();
@@ -118,6 +142,22 @@ struct Per3dObject {
         glPopMatrix();
         glEndList();
     }
+
+    bool collisionDetection(MyPos<float> world) {
+        for (int i = 0; i < sketch.size() - 1; ++i) {
+            MyPos<float> item = sketch[i];
+            item.z += h;
+            if (std::abs(fourPointC(world, sketch[i], sketch[i + 1], item)) < 0.1f)
+                return true;
+        }
+        return false;
+    }
+
+    void setColor(MyPos<float> tmpColor) {
+        color = tmpColor;
+        finish();
+    }
+
 };
 
 #endif //OPENGLGAME_MYDRAWUTIL_H

@@ -1,12 +1,15 @@
 #include <GL/glut.h>
 #include <iostream>
 #include <ctime>
-#include <vector>
+#include <list>
 #include "myDrawUtil.h"
 
 static float angle = 0.0, ratio;  // angle绕y轴的旋转角，ratio窗口高宽比
 static float x = 0.0f, y = 0.0f, z = 6.0f;  //相机位置
 static float lx = 0.0f, ly = 0.0f, lz = -1.0f;  //视线方向，初始设为沿着Z轴负方向
+
+const int WIDTH = 1000;
+const int HEIGHT = 1000;
 
 bool mouseDown = false;
 float xrot = 0.0f, yrot = 0.0f;
@@ -16,7 +19,7 @@ const float zoom = 0.1f;
 const int width = 100;
 const int height = 100;
 
-int useUtil = 0;
+int useUtil = 0; // 草图1，拉升2，颜色6
 std::list<Per3dObject> glp; // 全局已完成的图形
 Per3dObject now;    // 正在绘制的图形
 
@@ -64,9 +67,16 @@ void moveMeFlat(int direction) {
 void mouse(int button, int state, int x, int y) {
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
         if (useUtil == 1) {
-            std::vector<double> world = screen2world(x, y);
+            MyPos<float> world = screen2world(x, y);
 //            std::cout << func(world[1]) << " " << func(world[2]) << " " << myRound(world[3]) << std::endl;
-            now.sketch.emplace_back(myRound(world[1]), myRound(world[2]), world[3]);
+            now.sketch.emplace_back(myRound(world.x), myRound(world.y), world.z);
+        } else if (useUtil == 6) {
+            MyPos<float> world = screen2world(x, y);
+            world.x = myRound(world.x);
+            world.y = myRound(world.y);
+            for (auto &item:glp)
+                if (item.collisionDetection(world))
+                    item.setColor({1, 0, 0});
         } else {
             mouseDown = true;
             xdiff = x - yrot;
@@ -89,11 +99,10 @@ void mouse(int button, int state, int x, int y) {
  */
 void mouseMotion(int x, int y) {
     if (useUtil == 2) {
-        std::vector<double> world = screen2world(x, y);
-        now.h = world[2];
+        MyPos<float> world = screen2world(x, y);
+        now.h = myRound(world.x) - myRound(now.sketch[0].x);
         glutPostRedisplay();
-    }
-    if (mouseDown) {
+    } else if (mouseDown) {
         yrot = x - xdiff;
         xrot = y + ydiff;
         glutPostRedisplay();
@@ -130,7 +139,6 @@ void processSpecialKeys(int key, int x, int y) {
 }
 
 void processNormalKeys(unsigned char key, int x, int y) {
-    useUtil = 0;
     switch (key) {
         case 'z':
             // 画笔
@@ -139,13 +147,18 @@ void processNormalKeys(unsigned char key, int x, int y) {
             break;
         case 'q':
             // 拉升
+            if (useUtil != 1) break;
             useUtil = 2;
             xrot = -45.0f, yrot = 45.0f;
             break;
         case 'a':
             // 切除
             break;
+        case 'p':
+            useUtil = 6;
+            break;
         default:
+            useUtil = 0;
             break;
     }
 }
@@ -259,7 +272,7 @@ int main(int argc, char *argv[]) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
     glutInitWindowPosition(100, 100);
-    glutInitWindowSize(1000, 1000);
+    glutInitWindowSize(WIDTH, HEIGHT);
     glutCreateWindow("Demo");  // 改了窗口标题
 
     glutDisplayFunc(myDisplay);
