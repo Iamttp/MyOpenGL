@@ -1,9 +1,11 @@
 #include <GL/glut.h>
+#include <cmath>
 #include <iostream>
 #include <ctime>
 #include <list>
 #include <fstream>
 #include <thread>
+#include <cstring>
 #include "myDrawUtil.h"
 
 static float angle = 0.0, ratio;  // angle绕y轴的旋转角，ratio窗口高宽比
@@ -18,14 +20,22 @@ float xrot = 0.0f, yrot = 0.0f;
 float xdiff = 0.0f, ydiff = 0.0f;
 
 const float zoom = 0.1f;
-const int width = 100;
-const int height = 100;
+const int width = 200;
+const int height = 200;
 
 int useUtil = 0; // 草图1，拉升2，颜色6
 MyPos color;
 std::list<Per3dObject> glp; // 全局已完成的图形
 Per3dObject now;    // 正在绘制的图形
-int index;
+int myIndex;
+
+const float pi = 3.1415926;
+bool beginPlay = false;
+MyPos carPos;
+float carSpeed = 0.0f;
+float carAngle = pi / 2;
+const float spi = pi / 30;
+bool carView = false;
 
 /**
  * 定义观察方式
@@ -120,16 +130,20 @@ void mouseMotion(int x, int y) {
 void processSpecialKeys(int key, int x, int y) {
     switch (key) {
         case GLUT_KEY_UP:
-            orientMe(0, 1);
+            if (beginPlay) carSpeed++;
+            else orientMe(0, 1);
             break;
         case GLUT_KEY_DOWN:
-            orientMe(0, -1);
+            if (beginPlay) carSpeed--;
+            else orientMe(0, -1);
             break;
         case GLUT_KEY_LEFT:
-            orientMe(-1, 0);
+            if (beginPlay) carAngle += spi;
+            else orientMe(-1, 0);
             break;
         case GLUT_KEY_RIGHT:
-            orientMe(1, 0);
+            if (beginPlay) carAngle -= spi;
+            else orientMe(1, 0);
             break;
 
         case GLUT_KEY_PAGE_DOWN:
@@ -198,6 +212,11 @@ void processNormalKeys(unsigned char key, int x, int y) {
                 }
             }
             break;
+        case 'p':
+            beginPlay = !beginPlay;
+            break;
+        case 'o':
+            carView = !carView;
         default:
             useUtil = 0;
             break;
@@ -212,6 +231,21 @@ void myDisplay() {
     // 实现鼠标旋转的核心
     glRotatef(xrot, 1.0f, 0.0f, 0.0f);
     glRotatef(yrot, 0.0f, 1.0f, 0.0f);
+
+    if (carView) {
+        glRotatef(-90 * (carAngle * 2 / pi - 1), 0, 0, 1);
+        glTranslatef(-carPos.x, -carPos.y, -carPos.z - zoom);
+    }
+
+    if (beginPlay) {
+        glPushMatrix();
+        glTranslatef(carPos.x, carPos.y, carPos.z + zoom);
+        glRotatef(90 * (carAngle * 2 / pi - 1), 0, 0, 1);
+        glColor4f(1, 1, 0, 0);
+        glScaled(1, 1, 0.5);
+        glutSolidCube(zoom * 4);
+        glPopMatrix();
+    }
 
     // 最后画草图
     glPushMatrix();
@@ -241,13 +275,17 @@ void myDisplay() {
         glPopMatrix();
     }
 
-    glCallList(index);
+    glCallList(myIndex);
     glFlush();
     glutSwapBuffers();
 }
 
+// !!! 不可有opengl函数
 std::string exec(const char *str, int len) {
-    if (str[0] == 'c') {
+    if (str[0] == 'p') {
+        beginPlay = !beginPlay;
+        return "success play";
+    } else if (str[0] == 'c') {
         // 颜色设置
         std::string temp;
         int step = 0;
@@ -263,10 +301,10 @@ std::string exec(const char *str, int len) {
         }
         color.z = stof(temp);
         useUtil = 6;
+        return "success set color";
     }
     return "";
 }
-
 
 void myScript() {
     while (true) {
@@ -281,6 +319,10 @@ void myScript() {
  * 计时增加角度
  */
 void myIdle() {
+    if (beginPlay) {
+        carPos.y += std::sin(carAngle) * carSpeed * 0.001;
+        carPos.x += std::cos(carAngle) * carSpeed * 0.001;
+    }
     myDisplay();
 }
 
@@ -329,8 +371,8 @@ void init() {
     glutAttachMenu(GLUT_MIDDLE_BUTTON);
 
     // 显示列表
-    index = glGenLists(1);//glGenLists()唯一的标识一个显示列表
-    glNewList(index, GL_COMPILE);//用于对显示列表进行定界。第一个参数是一个整形索引值，由glGenLists()指定
+    myIndex = glGenLists(1);//glGenLists()唯一的标识一个显示列表
+    glNewList(myIndex, GL_COMPILE);//用于对显示列表进行定界。第一个参数是一个整形索引值，由glGenLists()指定
     // 然后坐标系
     glLineWidth(5);
     glEnable(GL_LINE_SMOOTH);
